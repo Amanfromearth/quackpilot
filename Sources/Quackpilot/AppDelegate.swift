@@ -7,8 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let hotkeys = HotkeyManager()
     let statusItem = StatusItemController()
     let scheduler = ReminderScheduler()
-    let calendarService: CalendarService = EventKitCalendarService()
-    lazy var calendarScheduler = CalendarAlertScheduler(service: calendarService)
+    lazy var calendarScheduler = CalendarAlertScheduler(service: Services.calendar)
     var settingsWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {

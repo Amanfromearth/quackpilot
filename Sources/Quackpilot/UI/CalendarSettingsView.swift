@@ -36,13 +36,19 @@ struct CalendarSettingsView: View {
             switch status {
             case .notDetermined:
                 Button("Request Access") {
+                    Log.write("Request Access button tapped")
+                    NSApp.activate(ignoringOtherApps: true)
                     Task {
-                        let granted = await calendarService?.requestAccess() ?? false
-                        refresh()
-                        if granted, settings.selectedCalendarIdentifiers.isEmpty {
-                            // First grant: default to watching every calendar.
+                        let granted = await calendarService.requestAccess()
+                        Log.write("requestAccess returned granted=\(granted)")
+                        await MainActor.run { refresh() }
+                        if granted {
                             await reloadCalendars()
-                            settings.selectedCalendarIdentifiers = Set(calendars.map(\.id))
+                            await MainActor.run {
+                                if settings.selectedCalendarIdentifiers.isEmpty {
+                                    settings.selectedCalendarIdentifiers = Set(calendars.map(\.id))
+                                }
+                            }
                         }
                     }
                 }
@@ -135,21 +141,19 @@ struct CalendarSettingsView: View {
 
     // MARK: - Refresh
 
-    private var calendarService: CalendarService? {
-        (NSApp.delegate as? AppDelegate)?.calendarService
-    }
+    private var calendarService: CalendarService { Services.calendar }
 
     private func refresh() {
-        status = calendarService?.authorizationStatus ?? .notDetermined
+        status = calendarService.authorizationStatus
         refreshTick &+= 1
     }
 
     private func reloadCalendars() async {
-        guard let svc = calendarService, status == .fullAccess else {
+        guard status == .fullAccess else {
             calendars = []
             return
         }
-        calendars = await svc.availableCalendars()
+        calendars = await calendarService.availableCalendars()
             .sorted { $0.displayName.lowercased() < $1.displayName.lowercased() }
     }
 

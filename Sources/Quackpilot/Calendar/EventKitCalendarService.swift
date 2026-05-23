@@ -46,11 +46,22 @@ final class EventKitCalendarService: CalendarService {
     }
 
     func requestAccess() async -> Bool {
+        Log.write("requestAccess called; status=\(authorizationStatus); bundleID=\(Bundle.main.bundleIdentifier ?? "<nil>")")
         if #available(macOS 14.0, *) {
-            return (try? await store.requestFullAccessToEvents()) ?? false
+            do {
+                let granted = try await store.requestFullAccessToEvents()
+                Log.write("requestFullAccessToEvents returned granted=\(granted)")
+                return granted
+            } catch {
+                Log.write("requestFullAccessToEvents threw: \(error)")
+                return false
+            }
         }
         return await withCheckedContinuation { cont in
-            store.requestAccess(to: .event) { granted, _ in
+            store.requestAccess(to: .event) { granted, err in
+                if let err {
+                    Log.write("legacy requestAccess error: \(err)")
+                }
                 cont.resume(returning: granted)
             }
         }
