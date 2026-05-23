@@ -70,9 +70,40 @@ cat > "${APP_DIR}/Contents/Info.plist" <<EOF
 </plist>
 EOF
 
-# Ad-hoc codesign so SMAppService can identify the bundle for login-item registration.
-# Without this, "Launch at login" silently fails because LaunchServices can't anchor the app.
-codesign --force --deep --sign - "${APP_DIR}" >/dev/null 2>&1 || true
+# Ad-hoc codesign so SMAppService can identify the bundle.
+#
+# Why we need each step:
+#  1. Strip Swift's linker-signature on the executable. The linker pre-signs
+#     with identifier=executable-name and no Info.plist binding, which makes
+#     SMAppService.mainApp.status return .notFound.
+#  2. Give the SPM resource bundle a minimal Info.plist + sign it. Otherwise
+#     deep-signing the .app fails with "bundle format unrecognized" because
+#     `*.bundle` directories without an Info.plist confuse codesign.
+#  3. Sign the .app with the explicit bundle identifier so the Code Directory
+#     uses CFBundleIdentifier (com.anurag.quackpilot) and binds Info.plist.
+codesign --remove-signature "${APP_DIR}/Contents/MacOS/${APP_NAME}" 2>/dev/null || true
+
+RESOURCE_BUNDLE="${APP_DIR}/Contents/MacOS/${APP_NAME}_${APP_NAME}.bundle"
+if [ -d "${RESOURCE_BUNDLE}" ] && [ ! -f "${RESOURCE_BUNDLE}/Info.plist" ]; then
+    cat > "${RESOURCE_BUNDLE}/Info.plist" <<RBPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>${BUNDLE_ID}.resources</string>
+    <key>CFBundlePackageType</key>
+    <string>BNDL</string>
+    <key>CFBundleName</key>
+    <string>${APP_NAME}Resources</string>
+</dict>
+</plist>
+RBPLIST
+fi
+
+codesign --force --sign - "${RESOURCE_BUNDLE}" 2>/dev/null || true
+codesign --force --sign - --identifier "${BUNDLE_ID}" "${APP_DIR}/Contents/MacOS/${APP_NAME}"
+codesign --force --sign - --identifier "${BUNDLE_ID}" "${APP_DIR}"
 
 # Strip quarantine xattr that gets added when downloaded from web.
 xattr -cr "${APP_DIR}" 2>/dev/null || true
