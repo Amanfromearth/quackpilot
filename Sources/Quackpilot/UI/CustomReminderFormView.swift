@@ -13,6 +13,10 @@ struct CustomReminderFormView: View {
     let onSave: (CustomReminder) -> Void
     let onCancel: () -> Void
 
+    /// Snapshot of the original schedule, captured at init time, so the save
+    /// handler can detect a schedule change and reset `lastFiredAt`.
+    private let originalSchedule: (firstFireAt: Date, repeatRule: RepeatRule)?
+
     init(existing: CustomReminder?, onSave: @escaping (CustomReminder) -> Void, onCancel: @escaping () -> Void) {
         let initial = existing ?? CustomReminder(
             title: "",
@@ -34,6 +38,7 @@ struct CustomReminderFormView: View {
         _repeatKind = State(initialValue: kind)
         _customMinutes = State(initialValue: minutes)
         self.isNew = (existing == nil)
+        self.originalSchedule = existing.map { ($0.firstFireAt, $0.repeatRule) }
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -102,6 +107,14 @@ struct CustomReminderFormView: View {
                     .keyboardShortcut(.cancelAction)
                 Button(isNew ? "Add" : "Save") {
                     draft.repeatRule = composeRule()
+                    // If the user changed the schedule (date/time or repeat rule),
+                    // reset lastFiredAt so the new schedule actually fires.
+                    // Without this, editing a .once reminder that already fired
+                    // would silently never fire again.
+                    if let original = originalSchedule,
+                       original.firstFireAt != draft.firstFireAt || original.repeatRule != draft.repeatRule {
+                        draft.lastFiredAt = nil
+                    }
                     onSave(draft)
                 }
                 .keyboardShortcut(.defaultAction)

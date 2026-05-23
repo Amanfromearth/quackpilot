@@ -9,9 +9,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let scheduler = ReminderScheduler()
     lazy var calendarScheduler = CalendarAlertScheduler(service: Services.calendar)
     var settingsWindow: NSWindow?
+    /// Retained activity token that disables App Nap. Without this, macOS will
+    /// throttle our polling Timer when the app has been idle in the menu bar
+    /// (no windows, no recent user interaction), which made reminders only fire
+    /// when the user happened to click the menu bar icon.
+    private var antiNapActivity: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+
+        // Keep the run loop and timers alive in the background. .userInitiated
+        // opts out of App Nap; .latencyCritical disables timer coalescing so the
+        // 15 s tick doesn't get lumped into multi-minute batches by the system.
+        antiNapActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated, .latencyCritical],
+            reason: "Quackpilot fires scheduled reminders on time"
+        )
 
         SpriteAssets.registerPixelFont()
 

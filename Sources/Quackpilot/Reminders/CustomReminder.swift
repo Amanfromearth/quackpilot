@@ -47,18 +47,33 @@ enum RepeatRule: Codable, Hashable {
 extension CustomReminder {
     /// Returns the next time this reminder should fire (≤ now means it's due NOW),
     /// or nil if it should never fire again (disabled, or one-time and already fired).
+    ///
+    /// For recurring rules the schedule is anchored to `firstFireAt`, not to
+    /// `lastFiredAt`, so a "daily at 9 AM" reminder keeps firing at 9 AM each day
+    /// even if the Mac was off for several days and lastFiredAt is stale.
     func nextDueDate(now: Date) -> Date? {
         guard enabled else { return nil }
-        if let last = lastFiredAt {
-            switch repeatRule {
-            case .once:
-                return nil
-            default:
-                guard let interval = repeatRule.interval else { return nil }
-                return last.addingTimeInterval(interval)
+        switch repeatRule {
+        case .once:
+            return lastFiredAt == nil ? firstFireAt : nil
+        case .everyMinutes, .hourly, .daily, .weekly:
+            guard let interval = repeatRule.interval, interval > 0 else { return nil }
+            // If never fired, the next due slot is firstFireAt itself.
+            guard let last = lastFiredAt else { return firstFireAt }
+            // If lastFiredAt somehow ended up before firstFireAt (clock skew or
+            // imported data), treat firstFireAt as the next slot.
+            if last < firstFireAt { return firstFireAt }
+            // Step from firstFireAt by interval until strictly after lastFiredAt.
+            let elapsed = last.timeIntervalSince(firstFireAt)
+            let n = (elapsed / interval).rounded(.down) + 1
+            // Defensive cap: if the Mac was off for years with a per-minute reminder,
+            // skip ahead instead of iterating millions of steps.
+            if n > 10_000_000 {
+                let stepsToNow = (now.timeIntervalSince(firstFireAt) / interval).rounded(.up)
+                return firstFireAt.addingTimeInterval(max(0, stepsToNow) * interval)
             }
+            return firstFireAt.addingTimeInterval(n * interval)
         }
-        return firstFireAt
     }
 
     /// True if this reminder should fire at `now`.

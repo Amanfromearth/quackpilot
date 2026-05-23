@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 
@@ -36,6 +37,14 @@ final class CalendarAlertScheduler {
         }
         RunLoop.main.add(t, forMode: .common)
         timer = t
+
+        // Catch-up triggers for when the Timer was throttled or the Mac was asleep.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.tick() }
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.tick() }
     }
 
     func stop() {
