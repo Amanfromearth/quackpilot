@@ -34,14 +34,68 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(audioEnabled, forKey: "audio.enabled") }
     }
 
+    // MARK: - Calendar
+
+    @Published var calendarEnabled: Bool {
+        didSet { UserDefaults.standard.set(calendarEnabled, forKey: "calendar.enabled") }
+    }
+    /// EKCalendar.calendarIdentifier values that should be watched.
+    @Published var selectedCalendarIdentifiers: Set<String> {
+        didSet {
+            UserDefaults.standard.set(Array(selectedCalendarIdentifiers), forKey: "calendar.selectedIdentifiers")
+        }
+    }
+    /// Minutes-before-start at which to fire a plane. e.g. `[10, 5, 0]` → three planes per event.
+    @Published var alertOffsetsMinutes: [Int] {
+        didSet { UserDefaults.standard.set(alertOffsetsMinutes, forKey: "calendar.alertOffsetsMinutes") }
+    }
+
     private init() {
         let d = UserDefaults.standard
         self.showPhysicsBounds = d.bool(forKey: "debug.showPhysicsBounds")
-        self.bannerAmplitude = d.object(forKey: "banner.amplitude") as? Double ?? 1.6
-        self.bannerFrequency = d.object(forKey: "banner.frequency") as? Double ?? 3.0
-        self.bannerPhaseStep = d.object(forKey: "banner.phaseStep") as? Double ?? 0.18
-        self.displayScale = d.object(forKey: "displayScale") as? Double ?? 0.55
-        self.audioEnabled = d.object(forKey: "audio.enabled") as? Bool ?? true
-        self.flightSpeed = d.object(forKey: "flightSpeed") as? Double ?? 110
+        self.bannerAmplitude = d.object(forKey: "banner.amplitude") as? Double ?? Defaults.bannerAmplitude
+        self.bannerFrequency = d.object(forKey: "banner.frequency") as? Double ?? Defaults.bannerFrequency
+        self.bannerPhaseStep = d.object(forKey: "banner.phaseStep") as? Double ?? Defaults.bannerPhaseStep
+        self.displayScale = d.object(forKey: "displayScale") as? Double ?? Defaults.displayScale
+        self.audioEnabled = d.object(forKey: "audio.enabled") as? Bool ?? Defaults.audioEnabled
+        self.flightSpeed = d.object(forKey: "flightSpeed") as? Double ?? Defaults.flightSpeed
+        self.calendarEnabled = d.object(forKey: "calendar.enabled") as? Bool ?? Defaults.calendarEnabled
+        if let arr = d.array(forKey: "calendar.selectedIdentifiers") as? [String] {
+            self.selectedCalendarIdentifiers = Set(arr)
+        } else {
+            self.selectedCalendarIdentifiers = []
+        }
+        if let arr = d.array(forKey: "calendar.alertOffsetsMinutes") as? [Int], !arr.isEmpty {
+            self.alertOffsetsMinutes = arr
+        } else {
+            self.alertOffsetsMinutes = Defaults.alertOffsetsMinutes
+        }
+    }
+
+    /// Restore visual/audio settings to their original defaults. Does NOT touch
+    /// custom reminders (user data) or launch-at-login (system-managed).
+    func resetToDefaults() {
+        showPhysicsBounds = false
+        bannerAmplitude = Defaults.bannerAmplitude
+        bannerFrequency = Defaults.bannerFrequency
+        bannerPhaseStep = Defaults.bannerPhaseStep
+        displayScale = Defaults.displayScale
+        audioEnabled = Defaults.audioEnabled
+        flightSpeed = Defaults.flightSpeed
+        calendarEnabled = Defaults.calendarEnabled
+        alertOffsetsMinutes = Defaults.alertOffsetsMinutes
+        // Intentionally NOT resetting selectedCalendarIdentifiers — preserve the user's
+        // calendar selection across a reset of visual prefs.
+    }
+
+    private enum Defaults {
+        static let bannerAmplitude: Double = 1.6
+        static let bannerFrequency: Double = 3.0
+        static let bannerPhaseStep: Double = 0.18
+        static let displayScale: Double = 0.55
+        static let audioEnabled: Bool = true
+        static let flightSpeed: Double = 110
+        static let calendarEnabled: Bool = false
+        static let alertOffsetsMinutes: [Int] = [10, 5, 0]
     }
 }

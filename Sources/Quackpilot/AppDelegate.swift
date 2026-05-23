@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let hotkeys = HotkeyManager()
     let statusItem = StatusItemController()
     let scheduler = ReminderScheduler()
+    let calendarService: CalendarService = EventKitCalendarService()
+    lazy var calendarScheduler = CalendarAlertScheduler(service: calendarService)
     var settingsWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -19,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         scheduler.dispatcher = dispatcher
         scheduler.start()
+
+        calendarScheduler.dispatcher = dispatcher
+        calendarScheduler.start()
 
         statusItem.install(
             onTrigger: { [weak self] in self?.triggerRandomReminder() },

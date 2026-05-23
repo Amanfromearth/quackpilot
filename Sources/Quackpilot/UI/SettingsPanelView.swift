@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsPanelView: View {
     @EnvironmentObject var settings: AppSettings
     @State private var launchAtLogin: Bool = LaunchAtLogin.isEnabled
+    @State private var showingResetConfirm = false
 
     var body: some View {
         ScrollView {
@@ -11,6 +12,18 @@ struct SettingsPanelView: View {
             }
             .padding(16)
         }
+        .confirmationDialog(
+            "Reset all settings to defaults?",
+            isPresented: $showingResetConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Reset", role: .destructive) {
+                settings.resetToDefaults()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Custom reminders and Launch-at-login are not affected.")
+        }
     }
 
     @ViewBuilder
@@ -18,6 +31,8 @@ struct SettingsPanelView: View {
             Text("Quackpilot Settings").font(.title2).bold()
 
             CustomRemindersListView()
+
+            CalendarSettingsView()
 
             GroupBox("Actions") {
                 VStack(alignment: .leading, spacing: 8) {
@@ -88,6 +103,15 @@ struct SettingsPanelView: View {
             GroupBox("Advanced") {
                 Toggle("Show Physics Bounds", isOn: $settings.showPhysicsBounds)
             }
+
+            HStack {
+                Button("Reset Settings to Defaults") {
+                    showingResetConfirm = true
+                }
+                .foregroundColor(.red)
+                Spacer()
+            }
+            .padding(.top, 4)
 
             Text("Hotkeys: ⌘⇧1 spawn  ⌘⇧2 trigger  ⌘⇧3 reload  ⌘⇧4 settings")
                 .font(.caption).foregroundStyle(.secondary)

@@ -62,6 +62,10 @@ cat > "${APP_DIR}/Contents/Info.plist" <<EOF
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Quackpilot reads upcoming events to fly a plane with the meeting title before each one starts.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Quackpilot reads upcoming events to fly a plane with the meeting title before each one starts.</string>
 </dict>
 </plist>
 EOF
