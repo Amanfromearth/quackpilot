@@ -5,7 +5,7 @@ enum MockReminderCatalog {
         .init(title: "Drink some water", urlString: "https://www.hydrationforhealth.com/"),
         .init(title: "Stand up & stretch", urlString: "https://www.nhs.uk/live-well/exercise/sitting-exercises/"),
         .init(title: "Reply to mom", urlString: "imessage://"),
-        .init(title: "Anurag ships it!", urlString: "https://github.com/")
+        .init(title: "Ship it!", urlString: "https://github.com/")
     ]
 
     static let meetings: [ReminderEvent] = [

@@ -6,7 +6,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let dispatcher = ReminderDispatcher()
     let hotkeys = HotkeyManager()
     let statusItem = StatusItemController()
-    var debugWindow: NSWindow?
+    let scheduler = ReminderScheduler()
+    var settingsWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -16,10 +17,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dispatcher.screenManager = screenManager
         screenManager.start()
 
+        scheduler.dispatcher = dispatcher
+        scheduler.start()
+
         statusItem.install(
             onTrigger: { [weak self] in self?.triggerRandomReminder() },
             onSpawn: { [weak self] in self?.spawnPlaceholderPlane() },
-            onDebug: { [weak self] in self?.toggleDebugPanel() },
+            onSettings: { [weak self] in self?.toggleSettingsPanel() },
             onQuit: { NSApp.terminate(nil) }
         )
 
@@ -27,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             spawn: { [weak self] in self?.spawnPlaceholderPlane() },
             triggerReminder: { [weak self] in self?.triggerRandomReminder() },
             reloadAssets: { [weak self] in self?.reloadAssets() },
-            toggleDebug: { [weak self] in self?.toggleDebugPanel() }
+            toggleSettings: { [weak self] in self?.toggleSettingsPanel() }
         )
     }
 
@@ -44,26 +48,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         screenManager.controllers.forEach { $0.reloadAssets() }
     }
 
-    func toggleDebugPanel() {
-        if let win = debugWindow, win.isVisible {
+    func toggleSettingsPanel() {
+        if let win = settingsWindow, win.isVisible {
             win.orderOut(nil)
             return
         }
-        let panel = DebugPanelView()
-            .environmentObject(DebugSettings.shared)
-            .frame(minWidth: 360, minHeight: 480)
+        let panel = SettingsPanelView()
+            .environmentObject(AppSettings.shared)
+            .frame(minWidth: 420, minHeight: 480)
         let host = NSHostingController(rootView: panel)
-        let win = debugWindow ?? NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 360, height: 480),
+        let win = settingsWindow ?? NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 640),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered, defer: false
         )
-        win.title = "Reminder Debug"
+        win.title = "Quackpilot Settings"
         win.contentViewController = host
         win.center()
         win.isReleasedWhenClosed = false
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        debugWindow = win
+        settingsWindow = win
     }
 }

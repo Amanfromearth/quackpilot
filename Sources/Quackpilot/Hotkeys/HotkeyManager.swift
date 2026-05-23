@@ -13,13 +13,13 @@ final class HotkeyManager {
         spawn: @escaping () -> Void,
         triggerReminder: @escaping () -> Void,
         reloadAssets: @escaping () -> Void,
-        toggleDebug: @escaping () -> Void
+        toggleSettings: @escaping () -> Void
     ) {
         installHandler()
         register(id: 1, keyCode: UInt32(kVK_ANSI_1), action: spawn)
         register(id: 2, keyCode: UInt32(kVK_ANSI_2), action: triggerReminder)
         register(id: 3, keyCode: UInt32(kVK_ANSI_3), action: reloadAssets)
-        register(id: 4, keyCode: UInt32(kVK_ANSI_4), action: toggleDebug)
+        register(id: 4, keyCode: UInt32(kVK_ANSI_4), action: toggleSettings)
     }
 
     private func installHandler() {

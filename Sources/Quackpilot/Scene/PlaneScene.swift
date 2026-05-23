@@ -27,7 +27,7 @@ final class PlaneScene: SKScene {
 
         // The supplied sprite already faces RIGHT, so we fly LEFT → RIGHT and
         // do NOT mirror. The rope sits on the left (trailing) side of the plane.
-        let scale = CGFloat(DebugSettings.shared.displayScale)
+        let scale = CGFloat(AppSettings.shared.displayScale)
         plane.setScale(scale)
         banner.setScale(scale)
 
@@ -56,16 +56,16 @@ final class PlaneScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        guard var flight = activeFlight else { return }
+        guard let flight = activeFlight else { return }
 
-        // Live-tunable display scale via debug panel slider.
-        let scale = CGFloat(DebugSettings.shared.displayScale)
+        // Live-tunable display scale via the settings panel slider.
+        let scale = CGFloat(AppSettings.shared.displayScale)
         flight.plane.setScale(scale)
         flight.banner.setScale(scale)
 
         if !flight.paused {
-            // Read speed each frame so the debug slider tunes flight speed live.
-            let speed = CGFloat(max(0, DebugSettings.shared.flightSpeed))
+            // Read speed each frame so the settings slider tunes flight speed live.
+            let speed = CGFloat(max(0, AppSettings.shared.flightSpeed))
             let dt = lastFrameDelta(currentTime: currentTime)
             flight.plane.position.x += speed * CGFloat(dt)
 
@@ -92,8 +92,6 @@ final class PlaneScene: SKScene {
         // extending LEFT (trailing the plane).
         flight.banner.position = CGPoint(x: tipX, y: tipY)
         flight.banner.tick(currentTime: currentTime)
-
-        activeFlight = flight
     }
 
     private var lastFrameTime: TimeInterval = 0

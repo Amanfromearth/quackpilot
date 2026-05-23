@@ -1,8 +1,8 @@
 import Foundation
 import Combine
 
-final class DebugSettings: ObservableObject {
-    static let shared = DebugSettings()
+final class AppSettings: ObservableObject {
+    static let shared = AppSettings()
 
     @Published var showPhysicsBounds: Bool {
         didSet { UserDefaults.standard.set(showPhysicsBounds, forKey: "debug.showPhysicsBounds") }

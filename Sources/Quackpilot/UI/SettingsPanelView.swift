@@ -1,11 +1,23 @@
 import SwiftUI
 
-struct DebugPanelView: View {
-    @EnvironmentObject var settings: DebugSettings
+struct SettingsPanelView: View {
+    @EnvironmentObject var settings: AppSettings
+    @State private var launchAtLogin: Bool = LaunchAtLogin.isEnabled
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Reminder Debug").font(.title2).bold()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                content
+            }
+            .padding(16)
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+            Text("Quackpilot Settings").font(.title2).bold()
+
+            CustomRemindersListView()
 
             GroupBox("Actions") {
                 VStack(alignment: .leading, spacing: 8) {
@@ -36,6 +48,23 @@ struct DebugPanelView: View {
                 Toggle("Play plane.mp3 on spawn", isOn: $settings.audioEnabled)
             }
 
+            GroupBox("Startup") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle("Launch at login", isOn: $launchAtLogin)
+                        .disabled(!LaunchAtLogin.isAvailable)
+                        .onChange(of: launchAtLogin) { newValue in
+                            if !LaunchAtLogin.setEnabled(newValue) {
+                                // Toggle failed; resync from system state.
+                                launchAtLogin = LaunchAtLogin.isEnabled
+                            }
+                        }
+                    if !LaunchAtLogin.isAvailable {
+                        Text("Run from Quackpilot.app (via ./build.sh) to enable this.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             GroupBox("Banner Wave") {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -56,15 +85,12 @@ struct DebugPanelView: View {
                 }
             }
 
-            GroupBox("Diagnostics") {
+            GroupBox("Advanced") {
                 Toggle("Show Physics Bounds", isOn: $settings.showPhysicsBounds)
             }
 
-            Spacer()
-            Text("Hotkeys: ⌘⇧1 spawn  ⌘⇧2 trigger  ⌘⇧3 reload  ⌘⇧4 debug")
+            Text("Hotkeys: ⌘⇧1 spawn  ⌘⇧2 trigger  ⌘⇧3 reload  ⌘⇧4 settings")
                 .font(.caption).foregroundStyle(.secondary)
-        }
-        .padding(16)
     }
 
     enum Action { case spawn, trigger, meeting, reload }

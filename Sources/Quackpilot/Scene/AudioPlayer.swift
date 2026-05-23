@@ -25,7 +25,7 @@ final class PlaneAudioPlayer {
     }
 
     func start() {
-        guard DebugSettings.shared.audioEnabled, let p = player else { return }
+        guard AppSettings.shared.audioEnabled, let p = player else { return }
         if p.isPlaying { return }
         p.currentTime = 0
         p.volume = 0.45

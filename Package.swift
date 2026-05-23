@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "Reminder",
+    name: "Quackpilot",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "Reminder",
-            path: "Sources/Reminder",
+            name: "Quackpilot",
+            path: "Sources/Quackpilot",
             resources: [
                 .process("Resources")
             ]
