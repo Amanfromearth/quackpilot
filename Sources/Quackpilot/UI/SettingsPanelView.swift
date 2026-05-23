@@ -119,7 +119,7 @@ struct SettingsPanelView: View {
 
     enum Action { case spawn, trigger, meeting, reload }
     private func action(_ a: Action) {
-        guard let delegate = NSApp.delegate as? AppDelegate else { return }
+        guard let delegate = AppDelegate.shared else { return }
         switch a {
         case .spawn:   delegate.spawnPlaceholderPlane()
         case .trigger: delegate.triggerRandomReminder()

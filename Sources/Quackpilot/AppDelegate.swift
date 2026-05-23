@@ -2,6 +2,11 @@ import AppKit
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// SwiftUI's @NSApplicationDelegateAdaptor doesn't expose us through
+    /// `NSApp.delegate` reliably from view code (same root cause as the
+    /// CalendarService bug). Views reach for `AppDelegate.shared` instead.
+    static private(set) weak var shared: AppDelegate?
+
     let screenManager = ScreenManager()
     let dispatcher = ReminderDispatcher()
     let hotkeys = HotkeyManager()
@@ -16,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var antiNapActivity: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.shared = self
         NSApp.setActivationPolicy(.accessory)
 
         // Keep the run loop and timers alive in the background. .userInitiated

@@ -1,21 +1,23 @@
 import SwiftUI
 
 /// Form to create or edit a single CustomReminder. Used as a .sheet from the
-/// settings panel.
+/// settings panel. Uses SwiftUI's grouped `Form` / `Section` for a native
+/// macOS settings-style layout.
 struct CustomReminderFormView: View {
-    /// The reminder being edited. If this is a NEW reminder it has a default id;
-    /// the store treats add vs update by checking whether `id` already exists.
     @State private var draft: CustomReminder
+    @State private var firingMode: FiringMode
+    @State private var delaySeconds: Int
+    @State private var delayMinutes: Int
     @State private var repeatKind: RepeatKind
+    @State private var customSeconds: Int
     @State private var customMinutes: Int
 
     private let isNew: Bool
+    /// Snapshot of the original schedule, captured at init, so we can reset
+    /// `lastFiredAt` when the schedule changes on save.
+    private let originalSchedule: (firstFireAt: Date, repeatRule: RepeatRule)?
     let onSave: (CustomReminder) -> Void
     let onCancel: () -> Void
-
-    /// Snapshot of the original schedule, captured at init time, so the save
-    /// handler can detect a schedule change and reset `lastFiredAt`.
-    private let originalSchedule: (firstFireAt: Date, repeatRule: RepeatRule)?
 
     init(existing: CustomReminder?, onSave: @escaping (CustomReminder) -> Void, onCancel: @escaping () -> Void) {
         let initial = existing ?? CustomReminder(
@@ -25,26 +27,41 @@ struct CustomReminderFormView: View {
             repeatRule: .once,
             enabled: true
         )
-        let kind: RepeatKind
-        let minutes: Int
+
+        let (initialKind, initialSeconds, initialMinutes): (RepeatKind, Int, Int)
         switch initial.repeatRule {
-        case .once:                kind = .once;         minutes = 15
-        case .everyMinutes(let m): kind = .everyMinutes; minutes = m
-        case .hourly:              kind = .hourly;       minutes = 15
-        case .daily:               kind = .daily;        minutes = 15
-        case .weekly:              kind = .weekly;       minutes = 15
+        case .once:                initialKind = .once;         initialSeconds = 30; initialMinutes = 15
+        case .everySeconds(let s): initialKind = .everySeconds; initialSeconds = s;  initialMinutes = 15
+        case .everyMinutes(let m): initialKind = .everyMinutes; initialSeconds = 30; initialMinutes = m
+        case .hourly:              initialKind = .hourly;       initialSeconds = 30; initialMinutes = 15
+        case .daily:               initialKind = .daily;        initialSeconds = 30; initialMinutes = 15
+        case .weekly:              initialKind = .weekly;       initialSeconds = 30; initialMinutes = 15
         }
+
         _draft = State(initialValue: initial)
-        _repeatKind = State(initialValue: kind)
-        _customMinutes = State(initialValue: minutes)
+        _firingMode = State(initialValue: .atTime)
+        _delaySeconds = State(initialValue: 30)
+        _delayMinutes = State(initialValue: 5)
+        _repeatKind = State(initialValue: initialKind)
+        _customSeconds = State(initialValue: initialSeconds)
+        _customMinutes = State(initialValue: initialMinutes)
+
         self.isNew = (existing == nil)
         self.originalSchedule = existing.map { ($0.firstFireAt, $0.repeatRule) }
         self.onSave = onSave
         self.onCancel = onCancel
     }
 
+    enum FiringMode: String, CaseIterable, Identifiable {
+        case atTime = "At specific time"
+        case afterSeconds = "In N seconds"
+        case afterMinutes = "In N minutes"
+        var id: String { rawValue }
+    }
+
     enum RepeatKind: String, CaseIterable, Identifiable {
         case once = "Once"
+        case everySeconds = "Every N seconds"
         case everyMinutes = "Every N minutes"
         case hourly = "Hourly"
         case daily = "Daily"
@@ -53,104 +70,134 @@ struct CustomReminderFormView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(isNew ? "New Reminder" : "Edit Reminder").font(.title3).bold()
-
-            GroupBox {
-                VStack(alignment: .leading, spacing: 10) {
-                    LabeledField("Title") {
-                        TextField("e.g. Stand up & stretch", text: $draft.title)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    LabeledField("URL (optional)") {
-                        TextField("https://… opened when banner clicked", text: $draft.urlString)
-                            .textFieldStyle(.roundedBorder)
-                    }
+        VStack(spacing: 0) {
+            header
+            Divider()
+            Form {
+                Section("Details") {
+                    TextField("Title", text: $draft.title, prompt: Text("e.g. Stand up & stretch"))
+                    TextField("URL", text: $draft.urlString, prompt: Text("https://… (optional)"))
                 }
-            }
 
-            GroupBox("Schedule") {
-                VStack(alignment: .leading, spacing: 10) {
-                    LabeledField("First fire") {
-                        DatePicker("", selection: $draft.firstFireAt,
+                Section("When to fire") {
+                    Picker("Fire", selection: $firingMode) {
+                        ForEach(FiringMode.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    switch firingMode {
+                    case .atTime:
+                        DatePicker("Date & time", selection: $draft.firstFireAt,
                                    displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                            .datePickerStyle(.compact)
-                    }
-                    LabeledField("Repeat") {
-                        Picker("", selection: $repeatKind) {
-                            ForEach(RepeatKind.allCases) { k in
-                                Text(k.rawValue).tag(k)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                    }
-                    if repeatKind == .everyMinutes {
-                        LabeledField("Every") {
+                    case .afterSeconds:
+                        Stepper(value: $delaySeconds, in: 1...3600) {
                             HStack {
-                                Stepper(value: $customMinutes, in: 1...1440) {
-                                    Text("\(customMinutes) min")
-                                }
-                                Spacer()
+                                Text("In")
+                                Text("\(delaySeconds) seconds").monospacedDigit()
+                            }
+                        }
+                    case .afterMinutes:
+                        Stepper(value: $delayMinutes, in: 1...1440) {
+                            HStack {
+                                Text("In")
+                                Text("\(delayMinutes) minutes").monospacedDigit()
                             }
                         }
                     }
                 }
-            }
 
-            Toggle("Enabled", isOn: $draft.enabled)
-
-            HStack {
-                Spacer()
-                Button("Cancel", action: onCancel)
-                    .keyboardShortcut(.cancelAction)
-                Button(isNew ? "Add" : "Save") {
-                    draft.repeatRule = composeRule()
-                    // If the user changed the schedule (date/time or repeat rule),
-                    // reset lastFiredAt so the new schedule actually fires.
-                    // Without this, editing a .once reminder that already fired
-                    // would silently never fire again.
-                    if let original = originalSchedule,
-                       original.firstFireAt != draft.firstFireAt || original.repeatRule != draft.repeatRule {
-                        draft.lastFiredAt = nil
+                Section("Repeat") {
+                    Picker("Repeat", selection: $repeatKind) {
+                        ForEach(RepeatKind.allCases) { Text($0.rawValue).tag($0) }
                     }
-                    onSave(draft)
+                    switch repeatKind {
+                    case .everySeconds:
+                        Stepper(value: $customSeconds, in: 5...3600) {
+                            HStack {
+                                Text("Every")
+                                Text("\(customSeconds) sec").monospacedDigit()
+                            }
+                        }
+                    case .everyMinutes:
+                        Stepper(value: $customMinutes, in: 1...1440) {
+                            HStack {
+                                Text("Every")
+                                Text("\(customMinutes) min").monospacedDigit()
+                            }
+                        }
+                    default:
+                        EmptyView()
+                    }
                 }
-                .keyboardShortcut(.defaultAction)
-                .disabled(draft.title.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                Section {
+                    Toggle("Enabled", isOn: $draft.enabled)
+                }
             }
+            .formStyle(.grouped)
+            Divider()
+            footer
         }
-        .padding(20)
-        .frame(width: 420)
+        .frame(width: 440, height: 540)
+    }
+
+    // MARK: - Header / footer
+
+    private var header: some View {
+        HStack {
+            Text(isNew ? "New Reminder" : "Edit Reminder")
+                .font(.title3).bold()
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+
+    private var footer: some View {
+        HStack {
+            Spacer()
+            Button("Cancel", action: onCancel)
+                .keyboardShortcut(.cancelAction)
+            Button(isNew ? "Add" : "Save", action: handleSave)
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+                .disabled(draft.title.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+
+    // MARK: - Save
+
+    private func handleSave() {
+        draft.repeatRule = composeRule()
+        // Delay-based firing modes ignore the DatePicker and compute firstFireAt
+        // from the current moment so "in 30 seconds" really means 30s from when
+        // the user hits Add/Save.
+        switch firingMode {
+        case .atTime:
+            break // draft.firstFireAt already bound to DatePicker
+        case .afterSeconds:
+            draft.firstFireAt = Date().addingTimeInterval(TimeInterval(delaySeconds))
+        case .afterMinutes:
+            draft.firstFireAt = Date().addingTimeInterval(TimeInterval(delayMinutes * 60))
+        }
+        // Reset lastFiredAt if the schedule changed on this edit, so the new
+        // schedule actually fires (avoids the "edited .once but never fires
+        // again" bug).
+        if let original = originalSchedule,
+           original.firstFireAt != draft.firstFireAt || original.repeatRule != draft.repeatRule {
+            draft.lastFiredAt = nil
+        }
+        onSave(draft)
     }
 
     private func composeRule() -> RepeatRule {
         switch repeatKind {
         case .once:         return .once
+        case .everySeconds: return .everySeconds(customSeconds)
         case .everyMinutes: return .everyMinutes(customMinutes)
         case .hourly:       return .hourly
         case .daily:        return .daily
         case .weekly:       return .weekly
-        }
-    }
-}
-
-private struct LabeledField<Content: View>: View {
-    let label: String
-    @ViewBuilder var content: Content
-
-    init(_ label: String, @ViewBuilder content: () -> Content) {
-        self.label = label
-        self.content = content()
-    }
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(label)
-                .frame(width: 100, alignment: .trailing)
-                .foregroundStyle(.secondary)
-            content
         }
     }
 }

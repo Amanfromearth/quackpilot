@@ -17,6 +17,7 @@ struct CustomReminder: Codable, Identifiable, Hashable {
 /// Codable conformance for us.
 enum RepeatRule: Codable, Hashable {
     case once
+    case everySeconds(Int)
     case everyMinutes(Int)
     case hourly
     case daily
@@ -26,6 +27,7 @@ enum RepeatRule: Codable, Hashable {
     var interval: TimeInterval? {
         switch self {
         case .once:                return nil
+        case .everySeconds(let s): return TimeInterval(max(1, s))
         case .everyMinutes(let m): return TimeInterval(max(1, m) * 60)
         case .hourly:              return 3600
         case .daily:               return 86_400
@@ -36,6 +38,7 @@ enum RepeatRule: Codable, Hashable {
     var label: String {
         switch self {
         case .once:                return "Once"
+        case .everySeconds(let s): return "Every \(s) sec"
         case .everyMinutes(let m): return "Every \(m) min"
         case .hourly:              return "Hourly"
         case .daily:               return "Daily"
@@ -56,7 +59,7 @@ extension CustomReminder {
         switch repeatRule {
         case .once:
             return lastFiredAt == nil ? firstFireAt : nil
-        case .everyMinutes, .hourly, .daily, .weekly:
+        case .everySeconds, .everyMinutes, .hourly, .daily, .weekly:
             guard let interval = repeatRule.interval, interval > 0 else { return nil }
             // If never fired, the next due slot is firstFireAt itself.
             guard let last = lastFiredAt else { return firstFireAt }

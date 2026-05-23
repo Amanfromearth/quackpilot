@@ -16,7 +16,9 @@ final class ReminderScheduler {
     weak var dispatcher: ReminderDispatcher?
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
-    private let tickInterval: TimeInterval = 15
+    /// 5 s polling so `everySeconds(5)` reminders fire close to on-time. The
+    /// Stepper in the form enforces a 5 s minimum so we don't undershoot.
+    private let tickInterval: TimeInterval = 5
 
     func start() {
         stop()
@@ -54,12 +56,16 @@ final class ReminderScheduler {
     private func tick() {
         let now = Date()
         let snapshot = CustomRemindersStore.shared.reminders
-        for reminder in snapshot where reminder.isDue(at: now) {
+        guard !snapshot.isEmpty else { return }
+        let due = snapshot.filter { $0.isDue(at: now) }
+        Log.write("Tick \(snapshot.count) reminders, \(due.count) due")
+        for reminder in due {
             fire(reminder, at: now)
         }
     }
 
     private func fire(_ reminder: CustomReminder, at now: Date) {
+        Log.write("Firing reminder '\(reminder.title)' (\(reminder.repeatRule.label)) scheduled \(reminder.firstFireAt)")
         let event = ReminderEvent(title: reminder.title, urlString: reminder.urlString)
         dispatcher?.fire(event)
         CustomRemindersStore.shared.markFired(id: reminder.id, at: now)
